@@ -1,0 +1,56 @@
+name: davidthor/java-spring-example
+description: |
+  An example Architect component that uses Spring Boot to serve the API and
+  Hibernate to connect to an auto-provisioned database.
+keywords:
+  - java
+  - spring
+  - hibernate
+  - mysql
+  - microservice
+
+parameters:
+  DB_ROOT_PASS: somesecretpassword
+  DB_NAME: spring-example
+
+services:
+  database:
+    image: mysql:8
+    command: --default-authentication-plugin=mysql_native_password
+    interfaces:
+      mysql:
+        port: 3306
+        protocol: mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${{ parameters.DB_ROOT_PASS }}
+      MYSQL_DATABASE: ${{ parameters.DB_NAME }}
+
+  app:
+    build:
+      context: ./src
+    command:
+      - sh
+      - -c
+      - |
+        sleep 5
+        java -jar /app/app.jar
+    interfaces:
+      main: 8080
+    environment:
+      DB_ADDR: ${{ services.database.interfaces.mysql.url }}
+      DB_NAME: ${{ parameters.DB_NAME }}
+      DB_USER: root
+      DB_PASS: ${{ parameters.DB_ROOT_PASS }}
+    debug:
+      build:
+        dockerfile: Dockerfile.debug
+      command: gradle --project-cache-dir /tmp/gradle-cache bootRun
+      environment:
+        ENABLE_CACHE: false
+      volumes:
+        src:
+          host_path: ./src
+          mount_path: /home/gradle/src
+
+interfaces:
+  app: ${{ services.app.interfaces.main.url }}
